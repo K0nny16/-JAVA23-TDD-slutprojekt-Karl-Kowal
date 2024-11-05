@@ -19,7 +19,7 @@ public class Bankomat {
        }
        else {
            int failedAttempts = bank.getFailedAttempts(cardId);
-           if(failedAttempts >= 2){
+           if(failedAttempts > 2){
                bank.lockCard(cardId);
                throw new SecurityException("Card is locked due to too many failed attempts!");
            }else {
