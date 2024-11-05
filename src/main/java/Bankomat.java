@@ -8,7 +8,8 @@ public class Bankomat {
        this.bank = bank;
    }
 
-   public boolean insertCard(int cardId,int[] pin){
+   boolean insertCard(int cardId, int[] pin){
+       //displayBankName();
        if(pin.length != 4 || Arrays.stream(pin).allMatch(num -> num < 0)) throw new IllegalArgumentException("Pin length do not equal 4 or have negative numbers!"); //
        User user = bank.getUserByCardId(cardId);
        if(user == null) throw new NullPointerException("User not found!"); //
@@ -27,7 +28,7 @@ public class Bankomat {
            }
        }
    }
-   public void menu(int cardId, int[] pin){
+   void menu(int cardId, int[] pin){
        if(insertCard(cardId,pin)){
            Scanner scanner = new Scanner(System.in);
            boolean exit = false;
@@ -67,12 +68,12 @@ public class Bankomat {
         double currentBalance = bank.getBalance(cardId);
         System.out.println("Current balance: "+currentBalance);
    }
-   void deposit(int cardId,double depositAmount){
+   void deposit(int cardId, double depositAmount){
         if(depositAmount <= 0) throw new IllegalArgumentException("Deposit amount must be positive!");
         bank.deposit(cardId,depositAmount);
         System.out.println("Deposited "+depositAmount+" to account "+cardId);
    }
-   void withdraw(int cardId,double withdrawAmount){
+   void withdraw(int cardId, double withdrawAmount){
         double currentBalance = bank.getBalance(cardId);
         if(withdrawAmount > currentBalance) throw new IllegalArgumentException("Withdraw amount must be greater than current balance!");
         else if(withdrawAmount <= 0) throw new IllegalArgumentException("Amount must be greater than zero!");
@@ -80,5 +81,8 @@ public class Bankomat {
             bank.withdraw(cardId,withdrawAmount);
             System.out.println("Withdrawn "+withdrawAmount+" from account "+cardId);
         }
+   }
+   String displayBankName(){
+       return bank.getBankName();
    }
 }

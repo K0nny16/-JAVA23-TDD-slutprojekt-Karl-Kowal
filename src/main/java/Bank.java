@@ -6,4 +6,5 @@ public interface Bank {
     double getBalance(int cardId);
     void deposit(int cardId, double amount);
     void withdraw(int cardId, double amount);
+    String getBankName();
 }

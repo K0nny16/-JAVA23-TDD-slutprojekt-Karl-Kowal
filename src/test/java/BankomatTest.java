@@ -9,99 +9,98 @@ import static org.mockito.Mockito.*;
 public class BankomatTest {
     private Bank mockBank;
     private Bankomat bankomat;
+    private final int cardId = 1234;
+    private User user;
 
     @BeforeEach
     void setUp() {
         mockBank = Mockito.mock(Bank.class);
         bankomat = new Bankomat(mockBank);
+        user = new User(cardId, new int[]{5, 6, 7, 8});
     }
-
     @Test
-    @DisplayName("Correct PIN")
-    void testCorrectPin(){
-        User user = new User(1234, new int[]{5, 6, 7, 8});
-        when(mockBank.getUserByCardId(1234)).thenReturn(user);
-        boolean result = bankomat.insertCard(1234,new int[]{5, 6, 7, 8});
+    @DisplayName("Correct PIN allows login")
+    void testCorrectPin() {
+        when(mockBank.getUserByCardId(cardId)).thenReturn(user);
+        boolean result = bankomat.insertCard(cardId, new int[]{5, 6, 7, 8});
         assertTrue(result);
     }
     @Test
-    @DisplayName("Wrong PIN")
-    void testWrongPin(){
-        User user = new User(1234, new int[]{5, 6, 7, 8});
-        when(mockBank.getUserByCardId(1234)).thenReturn(user);
-        when(mockBank.getFailedAttempts(1234)).thenReturn(1);
-        //Kollar samtidigt ifall rätt exceptions slängs.
-        Exception exception = assertThrows(Exception.class,() -> bankomat.insertCard(1234,new int[]{0, 0, 0, 0}) );
-        assertEquals("Incorrect PIN. Attempts left: 1",exception.getMessage());
-        verify(mockBank).incrementFailedAttempts(1234);
+    @DisplayName("Wrong PIN increases failed attempts")
+    void testWrongPin() {
+        when(mockBank.getUserByCardId(cardId)).thenReturn(user);
+        when(mockBank.getFailedAttempts(cardId)).thenReturn(1);
+        SecurityException exception = assertThrows(SecurityException.class, () -> bankomat.insertCard(cardId, new int[]{0, 0, 0, 0}));
+        assertEquals("Incorrect PIN. Attempts left: 1", exception.getMessage());
+        verify(mockBank).incrementFailedAttempts(cardId);
     }
     @Test
-    @DisplayName("Lock Card")
-    void testLockCard(){
-        User user = new User(1234, new int[]{5, 6, 7, 8});
-        when(mockBank.getUserByCardId(1234)).thenReturn(user);
-        when(mockBank.getFailedAttempts(1234)).thenReturn(2);
-        Exception exception = assertThrows(Exception.class,() -> bankomat.insertCard(1234,new int[]{0, 0, 0, 0}));
-        assertEquals("Card is locked due to too many failed attempts!",exception.getMessage());
-        verify(mockBank).lockCard(1234);
+    @DisplayName("Three wrong PIN attempts lock card")
+    void testLockCard() {
+        when(mockBank.getUserByCardId(cardId)).thenReturn(user);
+        when(mockBank.getFailedAttempts(cardId)).thenReturn(2);
+        SecurityException exception = assertThrows(SecurityException.class, () -> bankomat.insertCard(cardId, new int[]{0, 0, 0, 0}));
+        assertEquals("Card is locked due to too many failed attempts!", exception.getMessage());
+        verify(mockBank).lockCard(cardId);
     }
     @Test
-    @DisplayName("Access Locked Card")
-    void testAccessLockedCard(){
-        User user = new User(1234, new int[]{5, 6, 7, 8});
+    @DisplayName("Access Locked Card prevents login")
+    void testAccessLockedCard() {
         user.lockCard();
-        when(mockBank.getUserByCardId(1234)).thenReturn(user);
-        Exception exception = assertThrows(Exception.class,() -> bankomat.insertCard(1234,new int[]{5, 6, 7, 8}));
+        when(mockBank.getUserByCardId(cardId)).thenReturn(user);
+        SecurityException exception = assertThrows(SecurityException.class, () -> bankomat.insertCard(cardId, new int[]{5, 6, 7, 8}));
         assertEquals("User is locked!", exception.getMessage());
     }
     @Test
-    @DisplayName("PIN integrity")
-    void testPINIntegrity(){
-        assertThrows(NullPointerException.class, () -> bankomat.insertCard(1234,new int[]{5, -6, 7, 8}));
-        assertThrows(IllegalArgumentException.class, () -> bankomat.insertCard(1234,new int[]{5, 6, 7, 8, 9}));
+    @DisplayName("PIN integrity checks for valid length and no negative numbers")
+    void testPINIntegrity() {
+        assertThrows(NullPointerException.class, () -> bankomat.insertCard(cardId, new int[]{5, -6, 7, 8}));
+        assertThrows(IllegalArgumentException.class, () -> bankomat.insertCard(cardId, new int[]{5, 6, 7, 8, 9}));
     }
     @Test
-    @DisplayName("User not found")
-    void testUserNotFound(){
-        when(mockBank.getUserByCardId(1234)).thenReturn(null);
-        NullPointerException exception = assertThrows(NullPointerException.class, () -> bankomat.insertCard(1234,new int[]{5, 6, 7, 8}));
+    @DisplayName("User not found throws NullPointerException")
+    void testUserNotFound() {
+        when(mockBank.getUserByCardId(cardId)).thenReturn(null);
+        NullPointerException exception = assertThrows(NullPointerException.class, () -> bankomat.insertCard(cardId, new int[]{5, 6, 7, 8}));
         assertEquals("User not found!", exception.getMessage());
     }
     @Test
-    @DisplayName("Deposit")
-    void testDeposit(){
-        int cardId = 1234;
+    @DisplayName("Deposit is processed correctly")
+    void testDeposit() {
         double amount = 100.0;
-        bankomat.deposit(cardId,amount);
-        verify(mockBank).deposit(cardId,amount);
+        bankomat.deposit(cardId, amount);
+        verify(mockBank).deposit(cardId, amount);
     }
     @Test
-    @DisplayName("Check Balance")
-    void testCheckBalance(){
-        int cardId = 1234;
+    @DisplayName("Check balance is retrieved correctly")
+    void testCheckBalance() {
         double amount = 100.0;
         when(mockBank.getBalance(cardId)).thenReturn(amount);
         bankomat.balance(cardId);
         verify(mockBank).getBalance(cardId);
     }
     @Test
-    @DisplayName("Withdraw with sufficient balance")
-    void testWithdrawWithSufficientBalance(){
-        int cardId = 1234;
+    @DisplayName("Withdraw with sufficient balance is processed correctly")
+    void testWithdrawWithSufficientBalance() {
         double amount = 100.0;
         when(mockBank.getBalance(cardId)).thenReturn(200.0);
-        bankomat.withdraw(cardId,amount);
-        verify(mockBank).withdraw(cardId,amount);
+        bankomat.withdraw(cardId, amount);
+        verify(mockBank).withdraw(cardId, amount);
     }
     @Test
-    @DisplayName("Withdraw with insufficient balance")
-    void testWithdrawWithInsufficientBalance(){
-        int cardId = 1234;
+    @DisplayName("Withdraw with insufficient balance throws exception and is not processed")
+    void testWithdrawWithInsufficientBalance() {
         double amount = 100.0;
         when(mockBank.getBalance(cardId)).thenReturn(50.0);
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,() -> bankomat.withdraw(cardId,amount));
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> bankomat.withdraw(cardId, amount));
         assertEquals("Withdraw amount must be greater than current balance!", exception.getMessage());
-        //Kollar så att metoden aldrig körs med never()!
-        verify(mockBank,never()).withdraw(cardId,amount);
+        verify(mockBank, never()).withdraw(cardId, amount);
+    }
+    @Test
+    @DisplayName("Bank ID")
+    void testBankID() {
+        when(mockBank.getBankName()).thenReturn("Test Bank Name");
+        assertEquals("Test Bank Name",bankomat.displayBankName());
+        verify(mockBank).getBankName();
     }
 }
